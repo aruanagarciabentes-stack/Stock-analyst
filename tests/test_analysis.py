@@ -9,12 +9,12 @@ import yfinance as yf
 
 
 with patch.object(yf, "Ticker", side_effect=AssertionError("network call during import")):
-    import BusinessQ_Engine as business
-    import Corr_hedgEngine as correlation
-    import FinancialH_Engine as financial
-    import QuantativeNewsFeed as news
-    import Valuation_MomentumMetric as valuation
-    import management_insider_engine as ownership
+    from stock_analyst import business_quality as business
+    from stock_analyst import correlation
+    from stock_analyst import financial_health as financial
+    from stock_analyst import news_sentiment as news
+    from stock_analyst import ownership_earnings as ownership
+    from stock_analyst import valuation_momentum as valuation
 
 
 class FakeTicker:
