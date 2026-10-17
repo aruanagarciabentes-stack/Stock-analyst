@@ -1,20 +1,13 @@
 import yfinance as yf
-from datetime import datetime
-import lxml as lm # pylint: disable=unused-import
+from datetime import datetime, timezone
+import re
+import pandas as pd
 # This engine extracts live corporate news feeds and runs a lightweight, offline-safe 
 # Natural Language Processing (NLP) scoring model to evaluate qualitative sentiment.
 
 # ==========================================
 # 1. CONFIGURATION & INITIAL SETUP
 # ==========================================
-ticker_symbol = "AAPL"
-ticker = yf.Ticker(ticker_symbol)
-
-print("=" * 60)
-print("Connection Successful!")
-print(f"Company Name: {ticker.info.get('longName', 'N.A')}")
-print(f"Ticker      : {ticker.info.get('symbol', 'N/A')}")
-print("=" * 60)
 
 # ==========================================
 # 2. MASSIVE FINANCIAL-GRADE LEXICON (EXPANDED)
@@ -23,10 +16,10 @@ print("=" * 60)
 
 BULLISH_WORDS = {
     # Core Growth & Expansion Verbs/Tenses
-    "adds", "rewards", "redemption", "integration", "integrate", "adoption"
+    "adds", "rewards", "redemption", "integration", "integrate", "adoption",
     "grow", "grows", "growing", "grown", "growth", "growths",
     "expand", "expands", "expanding", "expanded", "expansion", "expansions", "expansionary",
-    "outperform", " outperforms", "outperforming", "outperformed", "outperformance",
+    "outperform", "outperforms", "outperforming", "outperformed", "outperformance",
     "beat", "beats", "beating", "beaten",
     "buy", "buys", "buying", "bought", "buyer", "buyers",
     "upgrade", "upgrades", "upgrading", "upgraded",
@@ -135,98 +128,49 @@ BEARISH_WORDS = {
 # 3. SENTIMENT ENGINE DEFINITION
 # ==========================================
 def analyze_headline_sentiment(headline: str) -> float:
-    """
-    Scans a headline string, counts occurrences of bullish vs bearish keywords,
-    and returns a standardized sentiment score between -1.0 and 1.0.
-    """
-    words = headline.lower().split()
+    """Lexicon score from -1 to 1; zero means no directional words."""
+    words = re.findall(r"[a-z]+(?:-[a-z]+)*", headline.lower())
+    bull_count = sum(word in BULLISH_WORDS for word in words)
+    bear_count = sum(word in BEARISH_WORDS for word in words)
+    count = bull_count + bear_count
+    return (bull_count - bear_count) / count if count else 0.0
 
-    # Clean punctuation and count matching lexicon tokens
-    bull_count = sum(1 for word in words if word.strip(",.?!()\"';:") in BULLISH_WORDS)
-    bear_count = sum(1 for word in words if word.strip(",.?!()\"';:") in BEARISH_WORDS)
 
-    total_sentiment_count = bull_count + bear_count
-
-    if total_sentiment_count == 0:
-        return 0.0  # Neutral score for an informational headline
-        
-    score = (bull_count - bear_count) / total_sentiment_count  # Polarization formula
-    return score
-
-# ==========================================
-# 4. LIVE NEWS EXTRACTION & PROCESSING
-# ==========================================
-print("\n" + "="*40)
-print("  LIVE CORPORATE INTELLIGENCE FEED")
-print("="*40)
-
-try:
-    news_feed = ticker.news
-
-    if news_feed:
-        headline_scores = 0 
-        cumulative_sentiment = 0.0
-
-        for i, article in enumerate(news_feed[:5], 1):
-            content = article.get("content", {})
-            title = content.get("title", "Headline Not Available")
-            
-            provider = content.get("provider", {})
-            publisher = provider.get("displayName", "Unknown Source")
-            
-            canonical_url_dict = content.get("canonicalUrl", {})
-            link = canonical_url_dict.get("url", "#")
-
-            raw_time_str = content.get("pubDate", None)
-            if raw_time_str:
-                try:
-                    cleaned_time_str = raw_time_str.replace("Z", "+00:00")
-                    dt = datetime.fromisoformat(cleaned_time_str)
-                    formatted_time = dt.strftime('%Y-%m-%d %H:%M')
-                except Exception:# pylint: disable=broad-exception-caught
-                    formatted_time = str(raw_time_str)
+def analyze(symbol: str, ticker=None) -> dict:
+    """Return recent headlines; word count is descriptive, not a price forecast."""
+    ticker = ticker or yf.Ticker(symbol)
+    try:
+        news_feed = ticker.news or []
+    except Exception:
+        news_feed = []
+    if not news_feed:
+        try:
+            news_feed = yf.Search(symbol, news_count=5).news or []
+        except Exception:
+            news_feed = []
+    rows = []
+    for article in news_feed[:5]:
+        content = article.get("content") or article
+        title = content.get("title") or "Untitled"
+        provider = content.get("provider") or {}
+        publisher = provider.get("displayName") if isinstance(provider, dict) else None
+        url_data = content.get("canonicalUrl") or content.get("clickThroughUrl") or content.get("link") or {}
+        url = url_data.get("url", "") if isinstance(url_data, dict) else str(url_data)
+        raw_time = content.get("pubDate") or content.get("providerPublishTime")
+        try:
+            if isinstance(raw_time, (int, float)):
+                timestamp = datetime.fromtimestamp(raw_time, timezone.utc)
             else:
-                formatted_time = "N/A"
-
-            sentiment_score = analyze_headline_sentiment(title)
-            cumulative_sentiment += sentiment_score
-            headline_scores += 1 
-
-            # Map sentiment score to a visual tag
-            if sentiment_score > 0:
-                tag = f"🟢 BULLISH ({sentiment_score:.2f})"
-            elif sentiment_score < 0:
-                tag = f"🔴 BEARISH ({sentiment_score:.2f})"
-            else:
-                tag = "⚪ NEUTRAL (0.00)"
-        
-            # Print the structured news card
-            print(f"\n{i}. [{formatted_time}] - {publisher}")
-            print(f"   📰 Headline: {title}")
-            print(f"   📊 NLP Sentiment: {tag}")
-            print(f"   🔗 Direct Link: {link}")
-            print("-" * 50)
-
-        # --- Print Overall Sentiment Dossier ---
-        if headline_scores > 0:
-            avg_sentiment = cumulative_sentiment / headline_scores
-            print("\n" + "="*40)
-            print("  CONSOLIDATED SENTIMENT ASSESSMENT")
-            print("="*40)
-            print(f"Processed Headlines  : {headline_scores}")
-            print(f"Consolidated Score   : {avg_sentiment:.2f}")
-
-            if avg_sentiment > 0.15:
-                print("Verdict              : 🟢 POSITIVE REGIME (Expansionary momentum & catalyst support)")
-            elif avg_sentiment < -0.15:
-                print("Verdict              : 🔴 NEGATIVE REGIME (Heightened operational risk / correction fear)")
-            else:
-                print("Verdict              : ⚪ NEUTRAL REGIME (Consolidating news pipeline)")
-                
-    else:
-        print("⚠️ No public media or press releases found on the server index.")
-        
-except Exception as e:# pylint: disable=broad-exception-caught
-    print(f"⚠️ Qualitative Scraper Error: {e}")
-
-print("="*60)
+                timestamp = datetime.fromisoformat(raw_time.replace("Z", "+00:00"))
+            published = timestamp.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        except (AttributeError, TypeError, ValueError, OSError):
+            published = "N/A"
+        rows.append({
+            "Published": published,
+            "Source": publisher or content.get("publisher") or "Unknown",
+            "Headline": title,
+            "Score": analyze_headline_sentiment(title),
+            "Link": url,
+        })
+    frame = pd.DataFrame(rows, columns=["Published", "Source", "Headline", "Score", "Link"])
+    return {"headlines": frame, "average_score": float(frame["Score"].mean()) if not frame.empty else None}
