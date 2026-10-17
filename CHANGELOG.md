@@ -1,5 +1,22 @@
 # Change record
 
+## 17 October 2026 — Explain the reports and organize the repository
+
+- **Stayed the same:** All six research subjects, their calculations, Yahoo Finance requests, ticker selection, 15-minute cache, independent report errors, and the Streamlit run command. This update does not change the numeric output of an engine.
+- **Changed:** The README now explains every displayed metric, its formula or provider source, how to read N/A, the project flow, and limits in beginner-friendly language. The original work log moved to `docs/WORK_LOG.md`.
+- **File layout:** The dashboard stays at the root as `Dashboard_App.py`; the six engines and shared helpers moved into `stock_analyst/` with descriptive module names. Dashboard and test imports were updated to match. GitHub sorts each directory automatically, so folders and the README project map provide the navigable structure.
+- **Compatibility note:** Code importing the former root-level engine module names must now import the corresponding `stock_analyst` module; the Streamlit launch command is unchanged.
+
+| Former root file | Current file |
+| --- | --- |
+| `BusinessQ_Engine.py` | `stock_analyst/business_quality.py` |
+| `FinancialH_Engine.py` | `stock_analyst/financial_health.py` |
+| `Valuation_MomentumMetric.py` | `stock_analyst/valuation_momentum.py` |
+| `Corr_hedgEngine.py` | `stock_analyst/correlation.py` |
+| `management_insider_engine.py` | `stock_analyst/ownership_earnings.py` |
+| `QuantativeNewsFeed.py` | `stock_analyst/news_sentiment.py` |
+| `data_utils.py` | `stock_analyst/data_utils.py` |
+
 ## 17 October 2026 — Restore and test the six-report dashboard
 
 This update turns the original collection of Yahoo Finance analysis scripts into a ticker-driven Streamlit app. It retains the six research subjects and the original sector and niche peer lists. The calculations and presentation below were changed deliberately; this is more than a formatting or error-handling patch.

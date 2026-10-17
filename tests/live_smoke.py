@@ -6,12 +6,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import BusinessQ_Engine as business
-import Corr_hedgEngine as correlation
-import FinancialH_Engine as financial
-import QuantativeNewsFeed as news
-import Valuation_MomentumMetric as valuation
-import management_insider_engine as ownership
+from stock_analyst import business_quality as business
+from stock_analyst import correlation
+from stock_analyst import financial_health as financial
+from stock_analyst import news_sentiment as news
+from stock_analyst import ownership_earnings as ownership
+from stock_analyst import valuation_momentum as valuation
 
 
 sections = {

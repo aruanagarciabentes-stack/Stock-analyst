@@ -3,7 +3,7 @@
 import pandas as pd
 import yfinance as yf
 
-from data_utils import display_frame, safe_ratio, statement_row
+from stock_analyst.data_utils import display_frame, safe_ratio, statement_row
 
 
 def analyze(symbol: str, ticker=None) -> pd.DataFrame:
